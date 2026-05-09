@@ -1,0 +1,73 @@
+name: urbus
+description: Urbus - citizen-facing municipal fleet tracking app connected to Traccar.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # FIX: flutter_localizations es un SDK package — va junto a flutter.
+  # Sin esto, GlobalMaterialLocalizations no existe y app.dart no compila.
+  flutter_localizations:
+    sdk: flutter
+
+  # ── State management ─────────────────────────────────────────────
+  flutter_riverpod: ^3.3.1
+
+  # ── Routing ──────────────────────────────────────────────────────
+  go_router: ^17.2.3
+
+  # ── Fonts & design ───────────────────────────────────────────────
+  google_fonts: ^8.1.0
+  flutter_svg: ^2.0.9
+  shimmer: ^3.0.0
+
+  # ── Mapping ──────────────────────────────────────────────────────
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.0
+
+  # ── Networking ───────────────────────────────────────────────────
+  dio: ^5.4.0
+  web_socket_channel: ^3.0.3
+
+  # ── Notifications ────────────────────────────────────────────────
+  flutter_local_notifications: ^21.0.0
+  # FIX: timezone es requerido por flutter_local_notifications para
+  # zonedSchedule(). Sin este paquete, notification_service.dart
+  # no compila en la línea de tz.TZDateTime.
+  timezone: ^0.11.0
+
+  # ── Persistence ──────────────────────────────────────────────────
+  # FIX: shared_preferences reemplazado por flutter_secure_storage.
+  # auth_provider.dart usa FlutterSecureStorage para guardar el token —
+  # SharedPreferences almacena en texto plano (inseguro para tokens JWT).
+  flutter_secure_storage: ^10.0.0
+  flutter_dotenv: ^6.0.1
+
+  # ── Location ─────────────────────────────────────────────────────
+  geolocator: ^14.0.2
+  permission_handler: ^12.0.1
+
+  # ── UI helpers ───────────────────────────────────────────────────
+  sliding_up_panel: ^2.0.0+1
+
+  # ── Internationalisation ─────────────────────────────────────────
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.9
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+    - .env
