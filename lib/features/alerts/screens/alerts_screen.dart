@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
-// FIX: AlertModel, AlertsNotifier, alertsProvider y AlertItem
-// viven todos en alert_item.dart — un solo import reemplaza los dos anteriores.
 import '../widgets/alert_item.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../shared/widgets/skeleton.dart';
@@ -35,13 +33,10 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: el provider retorna List<AlertModel> directamente, no un estado rico.
     final alerts = ref.watch(alertsProvider);
     final notifier = ref.read(alertsProvider.notifier);
     final unreadCount = ref.watch(unreadAlertsCountProvider);
 
-    // FIX: las preferencias de notificación viven en notificationProvider,
-    // no en alertsProvider. Se leen desde ahí.
     final notifState = ref.watch(notificationProvider);
     final notifNotifier = ref.read(notificationProvider.notifier);
 
@@ -96,8 +91,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             // ── Notification config card ─────────────────────
             SliverToBoxAdapter(
               child: _ConfigCard(
-                // FIX: los toggles leen desde notificationProvider,
-                // no desde alertsProvider que ya no tiene estos campos.
                 arrivalEnabled: notifState.arrivalAlertsEnabled,
                 delayEnabled: notifState.delayAlertsEnabled,
                 announcementsEnabled: notifState.announcementsEnabled,

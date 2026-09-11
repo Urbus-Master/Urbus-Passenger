@@ -16,8 +16,6 @@ abstract final class ApiConstants {
   static String get baseUrl =>
       dotenv.env['TRACCAR_BASE_URL'] ?? 'http://localhost:8082';
 
-  // FIX: renombrado wsUrl → traccarWsUrl para coincidir con las
-  // referencias en tracking_service.dart que usaban traccarWsUrl.
   static String get traccarWsUrl =>
       dotenv.env['TRACCAR_WS_URL'] ?? '';
 
@@ -36,14 +34,9 @@ abstract final class ApiConstants {
   // ── Auth endpoints ───────────────────────────────────────────
   static const String session = '/session';
 
-  // FIX: agregados los endpoints que usan auth_service.dart.
-  // loginEndpoint y logoutEndpoint referencian /session de Traccar.
-  // Traccar usa POST /session para login y DELETE /session para logout.
   static const String loginEndpoint        = '/session';
   static const String logoutEndpoint       = '/session';
   static const String validateTokenEndpoint = '/session';
-  // FIX: passwordResetEndpoint no existe en Traccar nativo —
-  // apunta a un endpoint custom del backend Urbus.
   static const String passwordResetEndpoint = '/users/password-reset';
 
   // ── Device endpoints ─────────────────────────────────────────
@@ -63,9 +56,6 @@ abstract final class ApiConstants {
   static const String reportsStops   = '/reports/stops';
   static const String reportsEvents  = '/reports/events';
 
-  // FIX: visitsEndpoint agregado — history_controller.dart lo
-  // referenciaba pero no existía. Apunta a los stops de Traccar
-  // que el backend Urbus enriquece como historial de visitas.
   static const String visitsEndpoint = '/reports/stops';
 
   // ── Notification endpoints ───────────────────────────────────

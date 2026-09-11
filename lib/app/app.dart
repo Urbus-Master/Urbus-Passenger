@@ -39,11 +39,6 @@ class UrbusApp extends ConsumerWidget {
         Locale('es'),
         Locale('en'),
       ],
-      // FIX: delegates descomentados y activados — necesarios para que
-      // los date pickers, dialogs y semánticas de Material aparezcan
-      // en español. Requiere `flutter_localizations` en pubspec.yaml:
-      //   flutter_localizations:
-      //     sdk: flutter
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

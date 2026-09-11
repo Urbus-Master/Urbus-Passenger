@@ -81,8 +81,6 @@ class NotificationService {
       ),
     );
 
-    // FIX: crear canales Android en initialise() — sin esto las
-    // notificaciones no aparecen en Android 8+.
     await _createChannels();
 
     _initialised = result ?? false;
@@ -91,8 +89,6 @@ class NotificationService {
 
   // ── Permissions ──────────────────────────────────────────────
 
-  // FIX: requestPermission() — action_buttons_row.dart y el notifier
-  // lo llaman antes de programar alertas. El original no lo tenía.
   Future<bool> requestPermission() async {
     if (Platform.isIOS) {
       final plugin = _plugin
@@ -138,8 +134,6 @@ class NotificationService {
 
   // ── Arrival alert ────────────────────────────────────────────
 
-  // FIX: toggleArrivalAlert() — tracking_service.dart y action_buttons_row
-  // lo llaman con esta firma exacta. El original era un stub vacío.
   Future<void> toggleArrivalAlert({
     required UnitModel unit,
     required DateTime estimatedArrival,
@@ -187,8 +181,6 @@ class NotificationService {
 
   // ── Delay notification ───────────────────────────────────────
 
-  // FIX: onUnitDelayed() — tracking_service.dart lo llama cuando el
-  // ETA cae bajo el umbral urgente y hay alerta programada.
   Future<void> onUnitDelayed(UnitModel unit, int delayMinutes) async {
     if (!_initialised) return;
     await _show(
@@ -271,7 +263,6 @@ class NotificationService {
       channelName,
       importance: importance,
       priority: priority,
-      // FIX: accent color como int — AppColors.accent es Color(0xFF2F81F7).
       color: const Color(0xFF2F81F7),
       enableLights: true,
     );
@@ -330,8 +321,6 @@ class NotificationService {
 // ─────────────────────────────────────────────
 
 class NotificationNotifier extends Notifier<NotificationState> {
-  // FIX: cambiado de StateNotifier a Notifier para ser consistente
-  // con el resto del proyecto que usa Notifier + NotifierProvider.
   late final NotificationService _service;
 
   @override
@@ -351,8 +340,6 @@ class NotificationNotifier extends Notifier<NotificationState> {
     );
   }
 
-  // FIX: requestPermission() — action_buttons_row.dart lo llama
-  // cuando el usuario toca "Alertarme" sin permiso concedido.
   Future<void> requestPermission() async {
     final granted = await _service.requestPermission();
     state = state.copyWith(hasPermission: granted);
@@ -360,8 +347,6 @@ class NotificationNotifier extends Notifier<NotificationState> {
 
   // ── Arrival alert toggle ─────────────────────────────────────
 
-  // FIX: toggleArrivalAlert() — tracking_service.dart y
-  // action_buttons_row.dart lo llaman con esta firma.
   Future<void> toggleArrivalAlert({
     required UnitModel unit,
     required DateTime estimatedArrival,
@@ -386,8 +371,6 @@ class NotificationNotifier extends Notifier<NotificationState> {
 
   // ── Delay alert ──────────────────────────────────────────────
 
-  // FIX: onUnitDelayed() — tracking_service.dart lo llama directamente
-  // en el notifier. Delega al service si las alertas están habilitadas.
   Future<void> onUnitDelayed(UnitModel unit, int delayMinutes) async {
     if (!state.delayAlertsEnabled || !state.hasPermission) return;
     await _service.onUnitDelayed(unit, delayMinutes);
@@ -433,8 +416,6 @@ final notificationServiceProvider = Provider<NotificationService>(
   (_) => NotificationService(),
 );
 
-// FIX: cambiado de StateNotifierProvider a NotifierProvider — consistente
-// con el resto del proyecto. StateNotifier está siendo deprecado en Riverpod.
 final notificationProvider =
     NotifierProvider<NotificationNotifier, NotificationState>(
   NotificationNotifier.new,

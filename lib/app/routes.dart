@@ -47,9 +47,6 @@ abstract final class _Durations {
 // ── Router provider ───────────────────────────────────────────
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // FIX: _AuthRouterNotifier ahora escucha `isAuthenticatedProvider`
-  // (Provider<bool>) en lugar de `authProvider` (Provider<AuthState>).
-  // El redirect necesita un bool, no el AuthState completo.
   final authNotifier = _AuthRouterNotifier(ref);
 
   return GoRouter(
@@ -58,13 +55,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
 
     redirect: (BuildContext context, GoRouterState state) {
-      // FIX: lee `isAuthenticatedProvider` en lugar de `authProvider`.
-      // authProvider ahora retorna AuthState, no bool.
-      // isAuthenticatedProvider es el narrow provider bool que creamos.
       final isAuthenticated = ref.read(isAuthenticatedProvider);
 
-      // FIX: también ignorar redirect mientras el estado es `unknown`
-      // (app recién abierta, sesión aún no verificada desde splash).
       final authStatus = ref.read(authProvider).status;
       if (authStatus == AuthStatus.unknown ||
           authStatus == AuthStatus.loading) {
@@ -167,8 +159,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// FIX: exponer el router como provider accesible desde widgets
-// que necesiten navegar sin BuildContext (ej: auth interceptor).
 final appRouterProvider = Provider<GoRouter>(
   (ref) => ref.watch(routerProvider),
 );
@@ -219,11 +209,6 @@ Widget _premiumTransition(
 
 class _AuthRouterNotifier extends ChangeNotifier {
   _AuthRouterNotifier(Ref ref) {
-    // FIX: escucha `isAuthenticatedProvider` (bool) en lugar de
-    // `authProvider` (AuthState). El router solo necesita saber si
-    // está autenticado o no — no el estado completo.
-    // También escucha `authProvider` para reaccionar al cambio de
-    // `unknown → unauthenticated` después del splash.
     ref.listen<AuthState>(
       authProvider,
       (previous, next) {

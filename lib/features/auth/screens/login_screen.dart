@@ -1,56 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../app/routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/error_snackbar.dart';
+import '../../tracking/controllers/auth_controller.dart';
 
-// ── Form state ────────────────────────────────────────────────────────────────
+// ── Form UI state — only the show/hide password toggle lives here.        ──
+// ── Loading/error state comes from authControllerProvider (the real       ──
+// ── source of truth for the login request).                              ──
 
-class _LoginFormState {
-  const _LoginFormState({
-    this.isLoading = false,
-    this.obscurePassword = true,
-    this.error,
-  });
-
-  final bool isLoading;
-  final bool obscurePassword;
-  final String? error;
-
-  _LoginFormState copyWith({
-    bool? isLoading,
-    bool? obscurePassword,
-    String? error,
-  }) =>
-      _LoginFormState(
-        isLoading:       isLoading       ?? this.isLoading,
-        obscurePassword: obscurePassword ?? this.obscurePassword,
-        error:           error,
-      );
-}
-
-final _loginFormProvider =
-    NotifierProvider<_LoginFormNotifier, _LoginFormState>(
-  _LoginFormNotifier.new,
+final _obscurePasswordProvider =
+    NotifierProvider<_ObscurePasswordNotifier, bool>(
+  _ObscurePasswordNotifier.new,
 );
 
-class _LoginFormNotifier extends Notifier<_LoginFormState> {
+class _ObscurePasswordNotifier extends Notifier<bool> {
   @override
-  _LoginFormState build() => const _LoginFormState();
+  bool build() => true;
 
-  void togglePassword() => state = state.copyWith(
-        obscurePassword: !state.obscurePassword,
-      );
-
-  void setLoading(bool value) => state = state.copyWith(isLoading: value);
-
-  void setError(String? message) => state = state.copyWith(error: message);
+  void toggle() => state = !state;
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -113,29 +85,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final notifier = ref.read(_loginFormProvider.notifier);
-    notifier.setLoading(true);
-    notifier.setError(null);
-
-    // TODO: replace with real auth service call
-    // Example:
-    // try {
-    //   await ref.read(authControllerProvider.notifier).login(
-    //     email: _emailCtrl.text.trim(),
-    //     password: _passwordCtrl.text,
-    //   );
-    //   if (mounted) context.goNamed(AppRoutes.home);
-    // } catch (e) {
-    //   notifier.setError(e.toString());
-    // } finally {
-    //   notifier.setLoading(false);
-    // }
-
-    // Simulated delay for UI demo
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    notifier.setLoading(false);
-    context.goNamed(AppRoutes.home);
+    // Delegates to AuthService → Traccar. On success, isAuthenticatedProvider
+    // flips and go_router's redirect (see routes.dart) navigates to home —
+    // no manual navigation needed here.
+    await ref.read(authControllerProvider.notifier).login(
+          _emailCtrl.text.trim(),
+          _passwordCtrl.text,
+        );
   }
 
   void _handleForgotPassword() {
@@ -181,13 +137,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final formState = ref.watch(_loginFormProvider);
-    final size      = MediaQuery.sizeOf(context);
+    final isLoading       = ref.watch(authLoadingProvider);
+    final obscurePassword = ref.watch(_obscurePasswordProvider);
+    final size            = MediaQuery.sizeOf(context);
 
-    // Show error snackbar reactively
-    ref.listen(_loginFormProvider, (prev, next) {
-      if (next.error != null && next.error != prev?.error) {
-        ErrorSnackBar.show(context, message: next.error!);
+    // Show error snackbar reactively — errors come from AuthService's
+    // typed AuthException, mapped to Spanish by authControllerProvider.
+    ref.listen(authErrorProvider, (prev, next) {
+      if (next != null && next != prev) {
+        ErrorSnackBar.show(context, message: next);
       }
     });
 
@@ -222,18 +180,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     // ── Form card ─────────────────────────────────────────
                     Expanded(
                       child: _FormCard(
-                        formKey:       _formKey,
-                        emailCtrl:     _emailCtrl,
-                        passwordCtrl:  _passwordCtrl,
-                        emailFocus:    _emailFocus,
-                        passwordFocus: _passwordFocus,
-                        formState:     formState,
+                        formKey:         _formKey,
+                        emailCtrl:       _emailCtrl,
+                        passwordCtrl:    _passwordCtrl,
+                        emailFocus:      _emailFocus,
+                        passwordFocus:   _passwordFocus,
+                        isLoading:       isLoading,
+                        obscurePassword: obscurePassword,
                         onLogin:          _handleLogin,
                         onForgotPassword: _handleForgotPassword,
                         onGoogleLogin:    _handleGoogleLogin,
                         onTogglePassword: () => ref
-                            .read(_loginFormProvider.notifier)
-                            .togglePassword(),
+                            .read(_obscurePasswordProvider.notifier)
+                            .toggle(),
                         validateEmail:    _validateEmail,
                         validatePassword: _validatePassword,
                       ),
@@ -372,7 +331,8 @@ class _FormCard extends StatelessWidget {
     required this.passwordCtrl,
     required this.emailFocus,
     required this.passwordFocus,
-    required this.formState,
+    required this.isLoading,
+    required this.obscurePassword,
     required this.onLogin,
     required this.onForgotPassword,
     required this.onGoogleLogin,
@@ -386,7 +346,8 @@ class _FormCard extends StatelessWidget {
   final TextEditingController passwordCtrl;
   final FocusNode emailFocus;
   final FocusNode passwordFocus;
-  final _LoginFormState formState;
+  final bool isLoading;
+  final bool obscurePassword;
   final VoidCallback onLogin;
   final VoidCallback onForgotPassword;
   final VoidCallback onGoogleLogin;
@@ -448,12 +409,12 @@ class _FormCard extends StatelessWidget {
               hint:           '••••••••',
               controller:     passwordCtrl,
               focusNode:      passwordFocus,
-              obscureText:    formState.obscurePassword,
+              obscureText:    obscurePassword,
               prefixIcon:     Icons.lock_outline_rounded,
               validator:      validatePassword,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => onLogin(),
-              suffixIcon: formState.obscurePassword
+              suffixIcon: obscurePassword
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
               onSuffixTap: onTogglePassword,
@@ -484,7 +445,7 @@ class _FormCard extends StatelessWidget {
             CustomButton(
               label:     'Iniciar sesión',
               onPressed: onLogin,
-              isLoading: formState.isLoading,
+              isLoading: isLoading,
             ),
             const SizedBox(height: 24),
 

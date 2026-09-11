@@ -1,8 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/models/announcement_model.dart';
+import '../../../../core/services/base_client.dart';
 import '../widgets/announcement_banner.dart';
 import '../../../../shared/widgets/skeleton.dart';
 
@@ -87,12 +90,17 @@ class _AnnouncementsState {
     this.filter = _FilterType.all,
     this.isLoading = false,
     this.error,
+    this.isMockData = false,
   });
 
   final List<AnnouncementModel> announcements;
   final _FilterType filter;
   final bool isLoading;
   final String? error;
+
+  /// True when [announcements] came from local fallback data instead of
+  /// the backend — surfaced to the UI instead of presented as real.
+  final bool isMockData;
 
   List<AnnouncementModel> get filtered => switch (filter) {
     _FilterType.all       => announcements.where((a) => a.isActive).toList(),
@@ -110,29 +118,49 @@ class _AnnouncementsState {
     _FilterType? filter,
     bool? isLoading,
     String? error,
+    bool? isMockData,
   }) => _AnnouncementsState(
     announcements: announcements ?? this.announcements,
     filter:        filter        ?? this.filter,
     isLoading:     isLoading     ?? this.isLoading,
     error:         error,
+    isMockData:    isMockData    ?? this.isMockData,
   );
 }
 
 class _AnnouncementsNotifier extends Notifier<_AnnouncementsState> {
+  late final Dio _dio;
+
   @override
   _AnnouncementsState build() {
+    _dio = ref.read(dioProvider);
     _load();
     return const _AnnouncementsState();
   }
 
   Future<void> _load() async {
     state = state.copyWith(isLoading: true);
-    // Simulate network delay — replace with real API call when backend ready.
-    await Future.delayed(const Duration(milliseconds: 800));
-    state = state.copyWith(
-      announcements: _mockAnnouncements,
-      isLoading: false,
-    );
+
+    try {
+      final response = await _dio.get(ApiConstants.notifications);
+      final data = response.data as List<dynamic>;
+      final announcements = data
+          .map((json) =>
+              AnnouncementModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      state = state.copyWith(
+        announcements: announcements,
+        isLoading: false,
+        isMockData: false,
+      );
+    } catch (_) {
+      state = state.copyWith(
+        announcements: _mockAnnouncements,
+        isLoading: false,
+        isMockData: true,
+      );
+    }
   }
 
   void setFilter(_FilterType filter) =>
@@ -171,7 +199,11 @@ class AnnouncementsScreen extends ConsumerWidget {
                   ref.read(_announcementsProvider.notifier).setFilter(f),
             ),
             Expanded(
-              child: _Body(state: state),
+              child: _Body(
+                state: state,
+                onRefresh: () =>
+                    ref.read(_announcementsProvider.notifier).refresh(),
+              ),
             ),
           ],
         ),
@@ -314,9 +346,10 @@ class _FilterRow extends StatelessWidget {
 // ── Body ──────────────────────────────────────────────────────────────────────
 
 class _Body extends StatelessWidget {
-  const _Body({required this.state});
+  const _Body({required this.state, required this.onRefresh});
 
   final _AnnouncementsState state;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -334,10 +367,14 @@ class _Body extends StatelessWidget {
     return RefreshIndicator(
       color: AppColors.accent,
       backgroundColor: AppColors.surface,
-      onRefresh: () async {},
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
+          if (state.isMockData) ...[
+            const _DemoModeBanner(),
+            const SizedBox(height: 12),
+          ],
           // Featured section
           if (featured.isNotEmpty) ...[
             _SectionTitle(
@@ -374,6 +411,40 @@ class _Body extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Demo mode banner ────────────────────────────────────────────────────────
+
+class _DemoModeBanner extends StatelessWidget {
+  const _DemoModeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.warningSubtle,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 18, color: AppColors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Modo demostración — no se pudo conectar al servidor, '
+              'mostrando avisos de ejemplo.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.warning,
+              ),
+            ),
+          ),
         ],
       ),
     );

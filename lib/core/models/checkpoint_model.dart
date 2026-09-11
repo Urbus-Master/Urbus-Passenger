@@ -9,8 +9,6 @@ import '../../app/theme/app_colors.dart';
 enum CheckpointStatus { completed, current, upcoming }
 
 extension CheckpointStatusX on CheckpointStatus {
-  // FIX: getters de UI que map_widget.dart y checkpoint_progress.dart
-  // esperaban directamente del enum — no existían en el original.
 
   String get label => switch (this) {
         CheckpointStatus.completed => 'Completada',
@@ -30,16 +28,12 @@ extension CheckpointStatusX on CheckpointStatus {
         CheckpointStatus.upcoming  => AppColors.borderActive,
       };
 
-  // FIX: markerSize — map_widget.dart lo usa para el tamaño del pin
-  // en el mapa. Current es más grande para destacar la parada activa.
   double get markerSize => switch (this) {
         CheckpointStatus.completed => 28.0,
         CheckpointStatus.current   => 36.0,
         CheckpointStatus.upcoming  => 28.0,
       };
 
-  // FIX: isPulsing — map_widget.dart lo usa para activar la animación
-  // de pulso solo en el checkpoint activo.
   bool get isPulsing => this == CheckpointStatus.current;
 
   IconData get icon => switch (this) {
@@ -63,13 +57,8 @@ class CheckpointModel {
   final DateTime estimatedTime;
   final CheckpointStatus status;
 
-  // FIX: actualTime — tiempo real de llegada cuando el checkpoint
-  // ya fue completado. Null mientras está pendiente.
-  // checkpoint_progress.dart lo usa para mostrar la hora real vs estimada.
   final DateTime? actualTime;
 
-  // FIX: delayMinutes — minutos de retraso al completar el checkpoint.
-  // checkpoint_progress.dart lo usa para el badge de retraso.
   final int? delayMinutes;
 
   const CheckpointModel({
@@ -87,12 +76,8 @@ class CheckpointModel {
 
   // ── Derived getters ──────────────────────────────────────────
 
-  // FIX: latLng — map_widget.dart lo usa para construir los puntos
-  // de la polyline y los marcadores sin conversión manual en cada widget.
   LatLng get latLng => LatLng(latitude, longitude);
 
-  // FIX: formattedTime — checkpoint_progress.dart lo usa para mostrar
-  // la hora estimada en el progress bar.
   String get formattedTime {
     final h = estimatedTime.hour % 12 == 0 ? 12 : estimatedTime.hour % 12;
     final m = estimatedTime.minute.toString().padLeft(2, '0');
@@ -100,8 +85,6 @@ class CheckpointModel {
     return '$h:$m $period';
   }
 
-  // FIX: wasDelayed — checkpoint_progress.dart lo usa para mostrar
-  // el badge de retraso solo cuando el checkpoint fue completado tarde.
   bool get wasDelayed =>
       status == CheckpointStatus.completed &&
       delayMinutes != null &&

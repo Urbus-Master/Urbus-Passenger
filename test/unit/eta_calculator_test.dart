@@ -18,8 +18,9 @@ const _oneKmNorth = LatLng(6.2532, -75.5812);
 const _tenKmNorth = LatLng(6.3342, -75.5812);
 
 /// A point within [AppConstants.arrivalRadiusMetres] of [_medellin].
-/// 0.001° lat ≈ 111 m → well inside the 150 m radius.
-const _veryClose = LatLng(6.2442 + 0.0010, -75.5812);
+/// 0.0003° lat ≈ 33 m → inside the current 50 m radius, and still well
+/// above the 10 m `hasMovedSignificantly` threshold.
+const _veryClose = LatLng(6.2442 + 0.0003, -75.5812);
 
 /// Builds a dummy [CheckpointModel] for use in routing tests.
 CheckpointModel _cp({

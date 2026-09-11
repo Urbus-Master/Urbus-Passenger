@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/models/visit_model.dart';
 import '../../../core/constants/api_constants.dart';
-import '../../../core/services/auth_service.dart';
+import '../../../core/services/base_client.dart';
 
 // ─────────────────────────────────────────────
 // FILTER TYPE
@@ -46,8 +46,6 @@ class HistoryStats {
 
     final now = DateTime.now();
 
-    // FIX: `date` es una propiedad derivada de `arrivedAt` en el modelo nuevo.
-    // Se reemplaza `v.date` por `v.arrivedAt` en todas las comparaciones.
     final thisMonth = visits.where(
       (v) =>
           v.arrivedAt.month == now.month && v.arrivedAt.year == now.year,
@@ -85,6 +83,11 @@ class HistoryState {
   final int page;
   final String? errorMessage;
 
+  /// True when [visits] came from the local fallback data instead of the
+  /// Traccar backend (e.g. offline, session expired). The UI must show
+  /// this plainly rather than presenting fabricated visits as real.
+  final bool isMockData;
+
   const HistoryState({
     this.visits = const [],
     this.filteredVisits = const [],
@@ -95,6 +98,7 @@ class HistoryState {
     this.hasReachedEnd = false,
     this.page = 0,
     this.errorMessage,
+    this.isMockData = false,
   });
 
   const HistoryState.initial() : this(isLoading: true);
@@ -113,6 +117,7 @@ class HistoryState {
     bool? hasReachedEnd,
     int? page,
     String? errorMessage,
+    bool? isMockData,
     bool clearError = false,
   }) =>
       HistoryState(
@@ -125,6 +130,7 @@ class HistoryState {
         hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
         page: page ?? this.page,
         errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
+        isMockData: isMockData ?? this.isMockData,
       );
 }
 
@@ -168,6 +174,7 @@ class HistoryController extends Notifier<HistoryState> {
         stats: HistoryStats.fromVisits(mock),
         hasReachedEnd: true,
         errorMessage: _mapError(e),
+        isMockData: true,
       );
     }
   }
@@ -219,11 +226,6 @@ class HistoryController extends Notifier<HistoryState> {
     return switch (filter) {
       HistoryFilter.all => visits,
 
-      // FIX: reemplazado `v.date` por `v.arrivedAt` en todos los filtros.
-      // El modelo viejo tenía un campo `date: DateTime` separado.
-      // El modelo nuevo tiene `arrivedAt: DateTime` y expone `date`
-      // como getter derivado — pero para filtrar usamos `arrivedAt`
-      // directamente para evitar crear objetos DateTime innecesarios.
       HistoryFilter.thisMonth => visits
           .where(
             (v) =>
@@ -233,9 +235,10 @@ class HistoryController extends Notifier<HistoryState> {
           .toList(),
 
       HistoryFilter.lastMonth => () {
-          // FIX: `DateTime(now.year, now.month - 1)` falla en enero
-          // (month=0 no existe). Se usa `DateTime(now.year, now.month - 1, 1)`
-          // que Dart normaliza correctamente a diciembre del año anterior.
+          // The explicit day (1) matters: DateTime(year, month - 1) with
+          // month = 1 would try to construct month 0, which doesn't
+          // exist. Dart normalizes it correctly only when a day is given,
+          // rolling over to December of the previous year in January.
           final lastMonth = DateTime(now.year, now.month - 1, 1);
           return visits
               .where(
@@ -290,12 +293,6 @@ class HistoryController extends Notifier<HistoryState> {
   List<VisitModel> _mockVisits() {
     final now = DateTime.now();
 
-    // FIX: constructor actualizado al modelo nuevo.
-    // Campos eliminados: `date` (derivado), `time` (String suelto).
-    // Campos nuevos: `arrivedAt` (DateTime completo), `checkpointId` (int),
-    // `unitId` (int), `id` (int).
-    // Se construye `arrivedAt` con fecha + hora exacta en vez de
-    // date + time como strings separados.
     return [
       VisitModel(
         id: 1,
@@ -420,4 +417,8 @@ final historyStatsProvider = Provider<HistoryStats>(
 
 final activeHistoryFilterProvider = Provider<HistoryFilter>(
   (ref) => ref.watch(historyControllerProvider).activeFilter,
+);
+
+final isHistoryMockDataProvider = Provider<bool>(
+  (ref) => ref.watch(historyControllerProvider).isMockData,
 );

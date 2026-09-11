@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../constants/api_constants.dart';
 import '../providers/auth_provider.dart';
+import 'base_client.dart';
 
 // ── Exceptions ────────────────────────────────────────────────────────────────
 
@@ -59,20 +60,6 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    // ── DEV MODE BYPASS ──────────────────────────────────────────────────
-    if (email == 'admin@urbus.com') {
-      final mockUser = UserModel(
-        id: 1,
-        email: 'admin@urbus.com',
-        name: 'Administrador Urbus',
-        isActive: true,
-        createdAt: DateTime.now(),
-      );
-      await _authNotifier.login(user: mockUser);
-      return mockUser;
-    }
-    // ─────────────────────────────────────────────────────────────────────
-
     try {
       // Traccar /api/session requires Basic Auth header.
       final credentials = base64Encode(utf8.encode('$email:$password'));
@@ -140,12 +127,6 @@ class AuthService {
     await _authNotifier.restoreSession();
 
     if (!_authNotifier.isAuthenticated) return false;
-
-    // ── DEV MODE BYPASS ──────────────────────────────────────────────────
-    if (_authNotifier.currentState.user?.email == 'admin@urbus.com') {
-      return true;
-    }
-    // ─────────────────────────────────────────────────────────────────────
 
     // Validate session is still active server-side.
     try {
@@ -254,23 +235,6 @@ class AuthService {
 }
 
 // ── Providers ─────────────────────────────────────────────────────────────────
-
-/// Shared Dio instance — configured for the Traccar backend.
-/// Interceptors are added in base_client.dart.
-final dioProvider = Provider<Dio>((ref) {
-  return Dio(
-    BaseOptions(
-      baseUrl:        ApiConstants.baseUrl,
-      connectTimeout: ApiConstants.connectTimeout,
-      receiveTimeout: ApiConstants.receiveTimeout,
-      sendTimeout:    ApiConstants.sendTimeout,
-      headers: {
-        'Accept':       ApiConstants.contentTypeJson,
-        'Content-Type': ApiConstants.contentTypeJson,
-      },
-    ),
-  );
-});
 
 /// Auth service provider — depends on Dio and AuthNotifier.
 final authServiceProvider = Provider<AuthService>((ref) {

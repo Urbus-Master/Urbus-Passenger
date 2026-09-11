@@ -43,6 +43,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final stats = ref.watch(historyStatsProvider);
     final filteredVisits = ref.watch(filteredVisitsProvider);
     final activeFilter = ref.watch(activeHistoryFilterProvider);
+    final isMockData = ref.watch(isHistoryMockDataProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -59,6 +60,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 child: Text('Historial de visitas', style: AppTypography.h2),
               ),
             ),
+
+            // ── Demo-mode banner ────────────────────────────────
+            if (isMockData)
+              const SliverToBoxAdapter(child: _DemoModeBanner()),
 
             // ── Stats card ────────────────────────────────────
             SliverToBoxAdapter(
@@ -138,6 +143,43 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// DEMO MODE BANNER
+// ─────────────────────────────────────────────
+
+class _DemoModeBanner extends StatelessWidget {
+  const _DemoModeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.warningSubtle,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 18, color: AppColors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Modo demostración — no se pudo conectar al servidor, '
+              'mostrando datos de ejemplo.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.warning,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

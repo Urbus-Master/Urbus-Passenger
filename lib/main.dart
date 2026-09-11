@@ -6,16 +6,21 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app/app.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/base_client.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Run all async boot tasks in parallel — faster cold start.
+  // initCookieJar() is started eagerly here and awaited after the rest
+  // so it still runs concurrently despite returning a different type.
+  final cookieJarFuture = initCookieJar();
   await Future.wait([
     _loadEnv(),
     _initLocale(),
     _configureSystemUI(),
   ]);
+  final cookieJar = await cookieJarFuture;
 
   // Notifications need the plugin singleton ready before runApp.
   final notificationService = NotificationService();
@@ -40,6 +45,9 @@ Future<void> main() async {
         // Inject the already-initialised service so providers
         // don't create a second instance.
         notificationServiceProvider.overrideWithValue(notificationService),
+        // The Traccar session cookie — persisted to disk so login
+        // survives app restarts.
+        cookieJarProvider.overrideWithValue(cookieJar),
       ],
       observers: [
         // Logs every provider state change in debug builds.

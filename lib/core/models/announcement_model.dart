@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 
-// FIX: corregido import — era 'package:tu_app/...' (placeholder),
-// debe ser path relativo correcto dentro del proyecto Urbus.
 
 enum AnnouncementIconType {
   info,
@@ -96,8 +94,6 @@ class AnnouncementModel {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  // FIX: isLongBody — announcement_banner.dart lo usa para mostrar
-  // el botón "Ver más" cuando el cuerpo supera los 180 caracteres.
   bool get isLongBody => body.length > 180;
 
   factory AnnouncementModel.fromJson(Map<String, dynamic> json) {

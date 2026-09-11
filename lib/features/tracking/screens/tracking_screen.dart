@@ -7,6 +7,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/services/tracking_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/utils/formatters.dart';
+import '../../alerts/widgets/alert_item.dart';
 import '../widgets/map_widget.dart';
 import '../widgets/bottom_sheet_card.dart';
 
@@ -136,6 +137,7 @@ class _TopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final connectionStatus = ref.watch(connectionStatusProvider);
+    final isMock = ref.watch(isMockTrackingProvider);
     final isConnected = connectionStatus == ConnectionStatus.connected;
     final isReconnecting = connectionStatus == ConnectionStatus.reconnecting;
 
@@ -182,7 +184,7 @@ class _TopBar extends ConsumerWidget {
                             height: 8,
                             decoration: BoxDecoration(
                               color: isConnected
-                                  ? AppColors.success
+                                  ? (isMock ? AppColors.accent : AppColors.success)
                                   : isReconnecting
                                       ? AppColors.warning
                                       : AppColors.error,
@@ -192,7 +194,7 @@ class _TopBar extends ConsumerWidget {
                           const SizedBox(width: 4),
                           Text(
                             isConnected
-                                ? 'En vivo'
+                                ? (isMock ? 'Modo demo' : 'En vivo')
                                 : isReconnecting
                                     ? 'Reconectando...'
                                     : 'Sin conexión',
@@ -256,8 +258,7 @@ class _NotificationButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Unread alerts count drives the badge.
-    final unreadCount = ref.watch(trackingProvider
-        .select((s) => 0)); // replace with alertsProvider when wired
+    final unreadCount = ref.watch(unreadAlertsCountProvider);
 
     return Semantics(
       button: true,

@@ -27,8 +27,9 @@ class LoadingOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      // IgnorePointer prevents taps/gestures from reaching widgets below.
-      ignoring: false, // set to false so all events are absorbed
+      // ignoring: true blocks taps/gestures from reaching widgets below
+      // while the overlay is shown.
+      ignoring: true,
       child: Container(
         color: AppColors.overlay,
         child: Center(

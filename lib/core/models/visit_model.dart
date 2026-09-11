@@ -27,14 +27,18 @@ class VisitModel {
 
   factory VisitModel.fromJson(Map<String, dynamic> json) {
     return VisitModel(
-      id: json['id'],
-      arrivedAt: DateTime.parse(json['arrivedAt']),
-      unitNumber: json['unitNumber'],
-      unitId: json['unitId'],
-      wasOnTime: json['wasOnTime'],
-      delayMinutes: json['delayMinutes'],
-      checkpointName: json['checkpointName'],
-      checkpointId: json['checkpointId'],
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      arrivedAt: DateTime.tryParse(
+              json['arrivedAt']?.toString() ?? '') ??
+          DateTime.now(),
+      unitNumber: (json['unitNumber'] as String?) ?? '',
+      unitId: (json['unitId'] as num?)?.toInt() ?? 0,
+      wasOnTime: (json['wasOnTime'] as bool?) ?? false,
+      delayMinutes: (json['delayMinutes'] as num?)?.toInt() ?? 0,
+      checkpointName: (json['checkpointName'] as String?) ?? '',
+      checkpointId: (json['checkpointId'] as num?)?.toInt() ?? 0,
     );
   }
 }

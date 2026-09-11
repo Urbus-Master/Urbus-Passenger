@@ -12,7 +12,6 @@ import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/error_snackbar.dart';
 import '../../history/controllers/history_controller.dart';
 import '../widgets/stats_row.dart';
-import '../../../core/services/connectivity_service.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -291,10 +290,7 @@ class _HeroSection extends ConsumerWidget {
           const SizedBox(height: 14),
 
           // Name
-          GestureDetector(
-            onDoubleTap: () => ref.read(connectivityProvider.notifier).toggle(),
-            child: Text(name, style: AppTypography.h2),
-          ),
+          Text(name, style: AppTypography.h2),
           const SizedBox(height: 4),
 
           // Email

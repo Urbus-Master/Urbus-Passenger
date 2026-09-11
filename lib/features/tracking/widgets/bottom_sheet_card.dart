@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/models/checkpoint_model.dart';
 import '../../../core/models/unit_model.dart';
 import '../../../core/services/tracking_service.dart';
 import '../../../core/utils/formatters.dart';
@@ -86,6 +87,10 @@ class _EtaHeroSection extends ConsumerWidget {
     final etaFormatted = ref.watch(etaFormattedProvider);
     final isUrgent = ref.watch(isEtaUrgentProvider);
     final activeUnit = ref.watch(activeUnitProvider);
+    final checkpoints = ref.watch(checkpointsProvider);
+    final currentCheckpoint = checkpoints
+        .where((c) => c.status == CheckpointStatus.current)
+        .firstOrNull;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
@@ -134,7 +139,7 @@ class _EtaHeroSection extends ConsumerWidget {
 
           // ── Status chip ─────────────────────────────────────
           if (activeUnit != null)
-            _StatusChip(unit: activeUnit),
+            _StatusChip(unit: activeUnit, currentCheckpoint: currentCheckpoint),
         ],
       ),
     );
@@ -190,12 +195,21 @@ class _EtaNumber extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   final UnitModel unit;
+  final CheckpointModel? currentCheckpoint;
 
-  const _StatusChip({required this.unit});
+  const _StatusChip({required this.unit, this.currentCheckpoint});
 
   bool get _isOnTime => unit.status == UnitStatus.active;
-  int get _delayMinutes =>
-      unit.status == UnitStatus.delayed ? 10 : 0; // real delay from model
+
+  /// Minutes past the current checkpoint's estimated arrival time —
+  /// derived from live data instead of a fixed placeholder.
+  int get _delayMinutes {
+    if (unit.status != UnitStatus.delayed || currentCheckpoint == null) {
+      return 0;
+    }
+    final diff = DateTime.now().difference(currentCheckpoint!.estimatedTime);
+    return diff.inMinutes > 0 ? diff.inMinutes : 0;
+  }
 
   Color get _bg => _isOnTime
       ? AppColors.success.withValues(alpha: 0.10)

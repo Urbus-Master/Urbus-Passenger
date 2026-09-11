@@ -9,7 +9,6 @@ import '../../core/utils/formatters.dart';
 enum UnitStatus { active, inactive, delayed }
 
 extension UnitStatusX on UnitStatus {
-  // FIX: getters de UI que los widgets esperaban en el enum.
 
   bool get isLive => this == UnitStatus.active;
 
@@ -61,8 +60,6 @@ class UnitModel {
   final DateTime lastUpdate;
   final String routeId;
 
-  // FIX: heading agregado — TruckMarker lo usa para rotar el ícono
-  // según la dirección de movimiento de la unidad.
   final double? heading;
 
   const UnitModel({
@@ -82,8 +79,6 @@ class UnitModel {
 
   // ── Derived getters ──────────────────────────────────────────
 
-  // FIX: driverInitials — UnitInfoCard lo usa para el avatar fallback
-  // cuando no hay foto del conductor.
   String get driverInitials {
     final parts = driverName.trim().split(' ');
     if (parts.isEmpty) return '?';
@@ -91,11 +86,8 @@ class UnitModel {
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
-  // FIX: formattedSpeed — UnitInfoCard lo muestra en el chip de velocidad.
   String get formattedSpeed => Formatters.speed(speed);
 
-  // FIX: lastUpdateLabel — UnitInfoCard lo usa para mostrar cuándo
-  // se recibió la última posición GPS.
   String get lastUpdateLabel => Formatters.relative(lastUpdate);
 
   // ── Serialisation ────────────────────────────────────────────

@@ -4,12 +4,14 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as ws_status;
 import '../constants/api_constants.dart';
 import '../constants/app_constants.dart';
 import '../models/unit_model.dart';
 import '../models/checkpoint_model.dart';
 import '../utils/eta_calculator.dart';
+import 'base_client.dart';
 import 'location_service.dart';
 import 'notification_service.dart';
 
@@ -38,6 +40,11 @@ class TrackingState {
   final bool isAlertScheduled;
   final String? errorMessage;
 
+  /// True when [connectionStatus] is being driven by the local GPS
+  /// simulator (no `TRACCAR_WS_URL` configured) rather than a real
+  /// Traccar WebSocket session. The UI must not present this as "live".
+  final bool isMock;
+
   const TrackingState({
     this.connectionStatus = ConnectionStatus.disconnected,
     this.activeUnit,
@@ -46,6 +53,7 @@ class TrackingState {
     this.userPosition,
     this.isAlertScheduled = false,
     this.errorMessage,
+    this.isMock = false,
   });
 
   const TrackingState.initial() : this();
@@ -81,6 +89,7 @@ class TrackingState {
     LatLng? userPosition,
     bool? isAlertScheduled,
     String? errorMessage,
+    bool? isMock,
     bool clearEta = false,
     bool clearError = false,
   }) =>
@@ -92,6 +101,7 @@ class TrackingState {
         userPosition: userPosition ?? this.userPosition,
         isAlertScheduled: isAlertScheduled ?? this.isAlertScheduled,
         errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
+        isMock: isMock ?? this.isMock,
       );
 }
 
@@ -103,7 +113,6 @@ class MockTrackingData {
   static const _baseLatitude = 6.2442;
   static const _baseLongitude = -75.5812;
 
-  // FIX: id y routeId cambiados a String para coincidir con UnitModel.
   static UnitModel get unit => UnitModel(
         id: 'unit-204',
         unitNumber: '204',
@@ -118,7 +127,6 @@ class MockTrackingData {
         routeId: 'route-01',
       );
 
-  // FIX: id cambiado a String para coincidir con CheckpointModel.
   static List<CheckpointModel> get checkpoints => [
         CheckpointModel(
           id: 'cp-1',
@@ -199,8 +207,6 @@ class TrackingService {
   TrackingService(this._ref);
 
   Future<void> connect(TrackingNotifier notifier) async {
-    // FIX: traccarWsUrl en lugar de traccarWsUrl inexistente —
-    // lee desde ApiConstants que carga el valor del .env.
     final wsUrl = ApiConstants.traccarWsUrl;
 
     if (wsUrl.isEmpty) {
@@ -208,17 +214,34 @@ class TrackingService {
       return;
     }
 
-    _connectWebSocket(notifier);
+    await _connectWebSocket(notifier);
   }
 
-  void _connectWebSocket(TrackingNotifier notifier) {
+  Future<void> _connectWebSocket(TrackingNotifier notifier) async {
     if (_disposed) return;
 
     notifier._setConnectionStatus(ConnectionStatus.connecting);
 
     try {
       final uri = Uri.parse(ApiConstants.traccarWsUrl);
-      _channel = WebSocketChannel.connect(uri);
+
+      // Traccar's WebSocket handshake is authenticated by the same
+      // session cookie as REST calls — Dio's CookieManager doesn't
+      // apply here since this is a separate client, so it's attached
+      // manually from the shared cookie jar.
+      final cookieJar = _ref.read(cookieJarProvider);
+      final cookies = await cookieJar.loadForRequest(
+        Uri.parse(ApiConstants.baseUrl),
+      );
+      final cookieHeader =
+          cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+      if (_disposed) return;
+
+      _channel = IOWebSocketChannel.connect(
+        uri,
+        headers: cookieHeader.isNotEmpty ? {'Cookie': cookieHeader} : null,
+      );
 
       _channel!.ready.then((_) {
         notifier._setConnectionStatus(ConnectionStatus.connected);
@@ -328,8 +351,6 @@ class TrackingService {
 
     if (unit == null) return;
 
-    // FIX: EtaCalculator.calculate retorna EtaResult? no Duration?.
-    // Extraemos la Duration del resultado.
     final result = EtaCalculator.calculate(
       unitPosition: LatLng(unit.latitude, unit.longitude),
       userPosition: userPosition,
@@ -366,12 +387,13 @@ class TrackingService {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(
       Duration(milliseconds: delayMs),
-      () { if (!_disposed) _connectWebSocket(notifier); },
+      () { if (!_disposed) unawaited(_connectWebSocket(notifier)); },
     );
   }
 
   void _startMockSimulation(TrackingNotifier notifier) {
     notifier._initMockData();
+    notifier._setMock(true);
     notifier._setConnectionStatus(ConnectionStatus.connected);
 
     _mockTimer = Timer.periodic(const Duration(seconds: 2), (_) {
@@ -400,8 +422,6 @@ class TrackingService {
 // ─────────────────────────────────────────────
 
 class TrackingNotifier extends Notifier<TrackingState> {
-  // FIX: _service no puede ser late final en Notifier porque build()
-  // puede llamarse más de una vez en hot reload. Se inicializa en build.
   TrackingService? _service;
 
   @override
@@ -439,8 +459,6 @@ class TrackingNotifier extends Notifier<TrackingState> {
   void _updateUnit(UnitModel unit) =>
       state = state.copyWith(activeUnit: unit);
 
-  // FIX: acepta Duration? directamente — EtaCalculator ahora retorna
-  // EtaResult?, el servicio extrae la duration antes de llamar aquí.
   void _updateEta(Duration? eta) =>
       state = state.copyWith(eta: eta);
 
@@ -448,6 +466,8 @@ class TrackingNotifier extends Notifier<TrackingState> {
         activeUnit: MockTrackingData.unit,
         checkpoints: MockTrackingData.checkpoints,
       );
+
+  void _setMock(bool value) => state = state.copyWith(isMock: value);
 
   // ── Public actions ───────────────────────────────────────────
 
@@ -494,6 +514,10 @@ final etaFormattedProvider = Provider<String>(
 
 final connectionStatusProvider = Provider<ConnectionStatus>(
   (ref) => ref.watch(trackingProvider).connectionStatus,
+);
+
+final isMockTrackingProvider = Provider<bool>(
+  (ref) => ref.watch(trackingProvider).isMock,
 );
 
 final checkpointsProvider = Provider<List<CheckpointModel>>(
